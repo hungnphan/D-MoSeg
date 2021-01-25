@@ -1,0 +1,9 @@
+{
+	"sequence_dir"				:	"/home/hung/Desktop/dataset/badWeather/blizzard",
+	"FPS"						:	240,
+	"KMIXTURE"					:	4,
+	"PIXEL_BATCH"				: 	128,
+	"LEARNING_RATE"				:	1e-4,
+	"EPOCHS"					:	3,
+	"SLIDING_STEP"				:	30
+}
