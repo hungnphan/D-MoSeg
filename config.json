@@ -6,5 +6,6 @@
 	"PIXEL_BATCH"				: 	128,
 	"LEARNING_RATE"				:	1e-4,
 	"EPOCHS"					:	2,
-	"SLIDING_STEP"				:	3
+	"SLIDING_STEP"				:	3,
+	"WINDOW_STRIDE"				: 	2
 }

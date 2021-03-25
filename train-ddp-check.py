@@ -57,7 +57,7 @@ def train_with_multi_gpus(rank, world_size):
     # input shape = [num_pixels, C, 1, FPS]
     num_pixels, C, FPS = config.PIXEL_BATCH, 3, config.FPS
     example_input = np.random.randint(0, 256,[num_pixels,C,1,FPS])
-    example_input = (torch.from_numpy(example_input).float() / 255.0).cuda()
+    example_input = (torch.from_numpy(example_input).float() / 255.0).to(device)
     print(f"example_input.shape = {example_input.shape}")
 
     example_output = cdn_net(example_input)
