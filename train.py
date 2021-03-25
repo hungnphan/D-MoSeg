@@ -36,10 +36,6 @@ def model_summary(model):
     print("="*100)
     print(f"Total Params:{total_params}")       
 
-    
-
-
-
 if __name__ == '__main__':
     # Specify device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -47,14 +43,15 @@ if __name__ == '__main__':
     # Read method params from json config file
     config = parse_config_from_json(config_file='config.json')
 
+    # Initialize data_loader
+    data_loader = DataLoader(config)
+
     # Define Convolutional Density Network
-    cdn_net = CDN(config.KMIXTURE).to(device)
+    cdn_net = CDN(config.KMIXTURE, \
+                  data_loader.img_heigh, data_loader.img_width, data_loader.img_channel).to(device)
 
     # Define loss function
     train_criterion = TrainingCriterion(config)
-
-    # Initialize data_loader
-    data_loader = DataLoader(config)
 
     # Define network optimizer
     optimizer = torch.optim.Adam(cdn_net.parameters(), lr=config.LEARNING_RATE)
@@ -105,6 +102,30 @@ if __name__ == '__main__':
             print('---> Epoch loss = %.5f' %(epoch_loss / round(N_PIXEL/config.PIXEL_BATCH)))
 
         data_loader.load_next_k_frame(2)
+
+
+    # Initialize data_loader for output result for demo
+    data_loader_2 = DataLoader(config)
+
+    for frame_idx in range (3500):
+        print("Frame #%4d" % frame_idx)
+
+        # Calculate background image
+        bg_img = cdn_net.calculate_background(data_loader_2.data_frame, batch_size = 16)
+
+        input_img = (data_loader_2.data_frame[..., (data_loader_2.current_frame_idx % data_loader_2.FPS)] * 255.0).type(torch.uint8).cpu().data.numpy()
+        input_img = input_img.reshape([data_loader_2.img_heigh, data_loader_2.img_width, data_loader_2.img_channel])
+
+        # Display background image
+        cv.imshow('Input image',input_img)
+        cv.imshow('Background image',bg_img)
+        cv.waitKey(0)
+
+
+        # Shift the sliding windows for the next iteration
+        data_loader_2.load_next_k_frame(1)
+
+    cv.destroyAllWindows()
 
 
 
