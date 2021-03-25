@@ -48,8 +48,8 @@ class CDN(nn.Module):
 
         out = torch.cat([pi, sigma, mu], -1)
 
-        # print("\tIn Model: input size", input_shape,
-        #       "output size", out.size())
+        print("\tIn Model: input size", input_shape,
+              "output size", out.size())
 
         return out
 
