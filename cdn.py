@@ -34,7 +34,9 @@ class CDN(nn.Module):
                 model_sigma =   [N, K_MIXTURES]
                 model_mu =      [N, K_MIXTURES * 3]    
         """        
-    
+
+        input_shape = x.shape
+
         x = F.relu(self.pconv1(self.dconv1(x))) # depthwise separable
         x = F.relu(self.pconv2(self.dconv2(x))) # depthwise separable
         
@@ -45,6 +47,9 @@ class CDN(nn.Module):
         mu = F.hardsigmoid(self.fc_mu(x))           # FC to muy     [Batch, KMIX * 3]
 
         out = torch.cat([pi, sigma, mu], -1)
+
+        print("\tIn Model: input size", input_shape,
+              "output size", out.size())
 
         return out
 
