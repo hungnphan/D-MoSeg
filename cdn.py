@@ -28,7 +28,7 @@ class CDN(nn.Module):
     def forward(self, x):
         """
             This method returns the CDNBackgroundModeling network architecture.
-            Input of the network is a [BATCH, CHANNEL, 1, FPS] numpy array or TF tensor that is normalized into range [0, 1]
+            Input of the network is a [BATCH, CHANNEL, 1, FPS] numpy array or tensor that is normalized into range [0, 1]
             Output of the network is a (N, 5*K_MIXTURES) including
                 model_pi =      [N, K_MIXTURES]
                 model_sigma =   [N, K_MIXTURES]
@@ -83,17 +83,19 @@ class CDN(nn.Module):
         # print(f"out_mix_var.shape = {out_mix_var.shape}")
         # print(f"out_mix_mean.shape = {out_mix_mean.shape}")
 
-
         # Post-processing: reshape the output, denormalize the variance, compute mixture mask
         mix_pi = out_mix_pi.view(self.IMG_HEIGHT, self.IMG_WIDTH, self.K_MIXTURES, 1)
         mix_var = out_mix_var.view(self.IMG_HEIGHT, self.IMG_WIDTH, self.K_MIXTURES, 1)
         mix_mean = out_mix_mean.view(self.IMG_HEIGHT, self.IMG_WIDTH, self.K_MIXTURES, self.IMG_CHANNEL)
 
+        # Extract background: at each pixel, we pickout the mixture components that
+        # have the greatest value of (weight / variance)
         mix_var = 16.0 + 16.0 * mix_var
-        div = mix_pi / mix_var
-        mixture_mask = torch.amax(div, dim=-2, keepdim=True) == div
-        background_img = torch.amax(mix_mean * mixture_mask, dim=-2)
+        div = mix_pi / mix_var                                          # [H, W, KMIX, 1]
+        mixture_mask = torch.amax(div, dim=-2, keepdim=True) == div     # [H, W, KMIX, 1]
+        background_img = torch.amax(mix_mean * mixture_mask, dim=-2)    # [H, W, 3] (keep_dim = False)
 
+        # Reverse normalization: (0,1) -> (0,255) uint8
         background_img = (background_img * 255.0).type(torch.uint8).cpu().data.numpy()
 
         # cv.imwrite('background.png', background_img)

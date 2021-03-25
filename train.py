@@ -9,8 +9,6 @@ from likelihood_loss_function import TrainingCriterion
 from data_io import DataLoader
 
 def model_summary(model):
-    print("model_summary")
-    print()
     print("Layer_name"+"\t"*7+"Number of Parameters")
     print("="*100)
     model_parameters = [layer for layer in model.parameters() if layer.requires_grad]
@@ -56,50 +54,57 @@ if __name__ == '__main__':
     # Define network optimizer
     optimizer = torch.optim.Adam(cdn_net.parameters(), lr=config.LEARNING_RATE)
 
-    # print(data_loader.data_frame.shape)
-
+    # Calculate the number of pixel in 2D image space
     N_PIXEL = data_loader.img_heigh * data_loader.img_width
 
+    # Print model summary
     model_summary(cdn_net) 
 
-    # loop over the dataset multiple times
+    print("\nStart the model training ...")
+    print(f"There are {round(N_PIXEL/config.PIXEL_BATCH)} batches for training\n")
+
+    # Train on each of sliding window's move
     for sliding_step in range(config.SLIDING_STEP):
+        print(f"---Training with the position #{sliding_step} of sliding windows---")
         train_data_frame = data_loader.data_frame
 
+        # Train on a position of sliding window [config.EPOCHS] times
         for epoch in range(config.EPOCHS):
             epoch_loss = 0.0
             step_loss = 0.0
 
-            # print(f"there are {N_PIXEL/config.PIXEL_BATCH} batches")
+            # Train on batches with a size of [config.PIXEL_BATCH] pixels
             for train_step in range(round(N_PIXEL/config.PIXEL_BATCH)):
-            # for train_step in range(5):
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
+                # Split the training batch
                 batch_start = train_step * config.PIXEL_BATCH                   
-                batch_end = min(N_PIXEL, (train_step+1) * config.PIXEL_BATCH)
-
-                # input shape = [N, C, 1, FPS]
-                # output shape = [N, 5 * KMIX]
-                output = cdn_net(data_loader.data_frame[batch_start:batch_end, ...]) 
+                batch_end = min(N_PIXEL, (train_step+1) * config.PIXEL_BATCH)                
+                training_batch = data_loader.data_frame[batch_start:batch_end, ...]     # input shape = [num_pixels, C, 1, FPS]
+               
+                # Feed forward on CDN
+                output = cdn_net(training_batch)    # output shape = [N, 5 * KMIX]
 
                 # x.shape = [N, 1, FPS, 3]  y.shape = [N, K_MIXTURES*5]
-                loss = train_criterion.likelihood_loss(data_loader.data_frame[batch_start:batch_end, ...].permute(0, 2, 3, 1), output).to(device)
+                loss = train_criterion.likelihood_loss(training_batch.permute(0, 2, 3, 1), output).to(device)
                 
-                # print(f"loss.item() = {loss.item()}")
-
-                # forward + backward + optimize
+                # Backward + optimize
                 loss.backward()
                 optimizer.step()
 
-                # print statistics
-                step_loss += loss.item()
-                epoch_loss += loss.item()
-                if train_step % 675 == 674:    # print every 500 mini-batches
-                    print('[%d, %5d] loss: %.3f' %
-                        (epoch + 1, train_step + 1, step_loss / 675,))
-                    running_loss = 0.0
-            print('---> Epoch loss = %.5f' %(epoch_loss / round(N_PIXEL/config.PIXEL_BATCH)))
+                # Accumulated loss values
+                step_loss += loss.item()        # Accumulated loss for each train_step (train on batches)
+                epoch_loss += loss.item()       # Accumulated loss for each
+                
+                # Report the average loss every 200 mini-batches
+                if (train_step+1) % 200 == 0:
+                    print('[epoch=%d, train_step=%5d]\tloss: %.3f' %
+                        (epoch + 1, train_step + 1, step_loss / 200,))   
+                    step_loss = 0.0         
+            
+            # Report the average loss at each position of sliding window
+            print('---> Everage loss (at each position of sliding window) = %.5f\n' %(epoch_loss / round(N_PIXEL/config.PIXEL_BATCH)))
 
         data_loader.load_next_k_frame(2)
 
