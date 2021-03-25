@@ -1,4 +1,5 @@
 {
+	"USE_MULTI_GPUS"			: 	true,
 	"sequence_dir"				:	"/home/hung/Desktop/dataset/badWeather/skating",
 	"FPS"						:	240,
 	"KMIXTURE"					:	4,
