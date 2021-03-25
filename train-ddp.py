@@ -2,41 +2,35 @@ import numpy as np
 import cupy as cp
 import cv2 as cv
 import torch
+import torch.multiprocessing as mp
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
 import os
 from arg_parser import parse_config_from_json
 from cdn import CDN
 from likelihood_loss_function import TrainingCriterion
 from data_io import DataLoader
 
-def model_summary(model):
-    print("Layer_name"+"\t"*7+"Number of Parameters")
-    print("="*100)
-    model_parameters = [layer for layer in model.parameters() if layer.requires_grad]
-    layer_name = [child for child in model.children()]
-    j = 0
-    total_params = 0
-    print("\t"*10)
-    for i in layer_name:
-        print()
-        param = 0
-        try:
-            bias = (i.bias is not None)
-        except:
-            bias = False  
-        if not bias:
-            param =model_parameters[j].numel()+model_parameters[j+1].numel()
-            j = j+2
-        else:
-            param =model_parameters[j].numel()
-            j = j+1
-        print(str(i)+"\t"*3+str(param))
-        total_params+=param
-    print("="*100)
-    print(f"Total Params:{total_params}")       
 
-if __name__ == '__main__':
+# Init group of processes for multi-GPUs
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = '127.0.0.1'
+    os.environ['MASTER_PORT'] = '6789'
+
+    # initialize the process group
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+# Destructor for group of processes with multi-GPUs
+def cleanup():
+    dist.destroy_process_group()
+
+def train_with_multi_gpus(rank, world_size):
+    print(f"Setting up DataDistributedParallel on rank {rank}.")
+    setup(rank, world_size)
+
     # Specify device
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = rank
 
     # Read method params from json config file
     config = parse_config_from_json(config_file='config.json')
@@ -46,12 +40,10 @@ if __name__ == '__main__':
 
     # Define Convolutional Density Network
     cdn_net = CDN(config.KMIXTURE, \
-                  data_loader.img_heigh, data_loader.img_width, data_loader.img_channel)
+                  data_loader.img_heigh, data_loader.img_width, data_loader.img_channel).to(device)
 
-    if config.USE_MULTI_GPUS == True and torch.cuda.device_count() >= 1:
-        print("Using", torch.cuda.device_count(), "GPUs!")
-        cdn_net = torch.nn.DataParallel(cdn_net)
-    cdn_net = cdn_net.to(device)
+    # construct DDP model
+    ddp_cdn_net = DDP(cdn_net, device_ids=[rank])
 
     # Define loss function
     train_criterion = TrainingCriterion(config)
@@ -61,9 +53,6 @@ if __name__ == '__main__':
 
     # Calculate the number of pixel in 2D image space
     N_PIXEL = data_loader.img_heigh * data_loader.img_width
-
-    # Print model summary
-    # model_summary(cdn_net) 
 
     print("\nStart the model training ...")
     print(f"There are {round(N_PIXEL/config.PIXEL_BATCH)} batches for training\n")
@@ -103,9 +92,9 @@ if __name__ == '__main__':
                 epoch_loss += loss.item()       # Accumulated loss for each
                 
                 # Report the average loss every 200 mini-batches
-                if (train_step+1) % 100 == 0:
+                if (train_step+1) % 200 == 0:
                     print('[epoch=%d, train_step=%5d]\tloss: %.3f' %
-                        (epoch + 1, train_step + 1, step_loss / 100,))   
+                        (epoch + 1, train_step + 1, step_loss / 200,))   
                     step_loss = 0.0         
             
             # Report the average loss at each position of sliding window
@@ -113,29 +102,17 @@ if __name__ == '__main__':
 
         data_loader.load_next_k_frame(2)
 
-
-    # # Initialize data_loader for output result for demo
-    # data_loader_2 = DataLoader(config)
-
-    # for frame_idx in range (3500):
-    #     print("Frame #%4d" % frame_idx)
-
-    #     # Calculate background image
-    #     bg_img = cdn_net.calculate_background(data_loader_2.data_frame, batch_size = 16)
-
-    #     input_img = (data_loader_2.data_frame[..., (data_loader_2.current_frame_idx % data_loader_2.FPS)] * 255.0).type(torch.uint8).cpu().data.numpy()
-    #     input_img = input_img.reshape([data_loader_2.img_heigh, data_loader_2.img_width, data_loader_2.img_channel])
-
-    #     # Display background image
-    #     cv.imshow('Input image',input_img)
-    #     cv.imshow('Background image',bg_img)
-    #     cv.waitKey(0)
+    cleanup()
 
 
-    #     # Shift the sliding windows for the next iteration
-    #     data_loader_2.load_next_k_frame(1)
+def process(target_fnc, world_size):
+    mp.spawn(target_fnc,
+             args=(world_size,),
+             nprocs=world_size,
+             join=True)
 
-    # cv.destroyAllWindows()
 
+if __name__ == '__main__':
+    process(target_fnc = train_with_multi_gpus, world_size=1)
 
 
