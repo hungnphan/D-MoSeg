@@ -5,7 +5,8 @@
 	"KMIXTURE"					:	4,
 	"PIXEL_BATCH"				: 	128,
 	"LEARNING_RATE"				:	1e-4,
-	"EPOCHS"					:	2,
-	"SLIDING_STEP"				:	3,
-	"WINDOW_STRIDE"				: 	2
+	"EPOCHS"					:	1,
+	"SLIDING_STEP"				:	15,
+	"WINDOW_STRIDE"				: 	2,
+	"TRAINING_DIR"				: 	"save_model"
 }
