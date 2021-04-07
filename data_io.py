@@ -4,23 +4,14 @@ import cv2 as cv
 import torch
 import os
 
-cdnet_data = {
-    "badWeather"                : ["blizzard","skating","snowFall","wetSnow"],
-    "baseline"                  : ["highway","office","pedestrians","PETS2006"],
-    "cameraJitter"              : ["badminton","boulevard","sidewalk","traffic"],
-    "dynamicBackground"         : ["boats","canoe","fall","fountain01","fountain02","overpass"],
-    "intermittentObjectMotion"  : ["abandonedBox","parking","sofa","streetLight","tramstop","winterDriveway"],
-    "lowFramerate"              : ["port_0_17fps","tramCrossroad_1fps","tunnelExit_0_35fps","turnpike_0_5fps"],
-    "nightVideos"               : ["bridgeEntry","busyBoulvard","fluidHighway","streetCornerAtNight","tramStation","winterStreet"],
-    "PTZ"                       : ["continuousPan","intermittentPan","twoPositionPTZCam","zoomInZoomOut"],
-    "shadow"                    : ["backdoor","bungalows","busStation","copyMachine","cubicle","peopleInShade"],
-    "thermal"                   : ["corridor","diningRoom","lakeSide","library","park"],
-    "turbulence"                : ["turbulence0","turbulence1","turbulence2","turbulence3"]
-}
+
 
 class DataLoader:
-    def __init__(self, args):
+    def __init__(self, args, scenario_name, sequence_name):
         self.sequence_dir = args.sequence_dir    # path to CDnet/scenario/sequence
+        self.scenario_name = scenario_name
+        self.sequence_name = sequence_name
+
 
         self.FPS = args.FPS
         self.data_path = None
@@ -45,14 +36,15 @@ class DataLoader:
         return
 
     def __init_img_info__(self):
-        self.data_path = os.path.join(self.sequence_dir, 'input', 'in%06d.jpg')
+        self.data_path = os.path.join(self.sequence_dir, self.scenario_name, self.sequence_name, 'input', 'in%06d.jpg')
+        # print(self.data_path)
         if os.path.exists(self.data_path % 1):
             sample_frame = cv.imread(self.data_path % 1, cv.IMREAD_COLOR)
 
             if sample_frame is not None:
                 self.img_heigh, self.img_width, self.img_channel = sample_frame.shape
-                self.data_len = len([file_name for file_name in os.listdir(os.path.join(self.sequence_dir, 'input')) \
-                                        if os.path.isfile(os.path.join(self.sequence_dir, 'input', file_name))])
+                self.data_len = len([file_name for file_name in os.listdir(os.path.join(self.sequence_dir, self.scenario_name, self.sequence_name, 'input')) \
+                                        if os.path.isfile(os.path.join(self.sequence_dir, self.scenario_name, self.sequence_name, 'input', file_name))])
                 return True
         return False
 
