@@ -40,7 +40,8 @@ class TrainingCriterion:
         #   4. Expand the dimension of the resulting tensor to get the tensor of shape (1, 1, K_MIXTURES, 3, 3)
         # The resulting tensor is basically an inverse covariance matrix for each Gaussian component.    
         # (1, K_MIXTURES, 3, 3) * (N, K_MIXTURES, 1, 1) -> [N, 1, K_MIXTURES, 3, 3]
-        inverse_covariance = (torch.eye(3).unsqueeze(0).unsqueeze(0).repeat(1, self.K_MIXTURES, 1, 1).cuda() \
+        #.cuda()   
+        inverse_covariance = (torch.eye(3).unsqueeze(0).unsqueeze(0).repeat(1, self.K_MIXTURES, 1, 1) \
             * torch.reciprocal(variance).unsqueeze(-1).unsqueeze(-1)).unsqueeze(1)
             # shape = [N, 1, K_MIXTURES, 3, 3]
 

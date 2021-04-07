@@ -106,7 +106,7 @@ class BackgroundTrainer:
                     output = self.cdn_net(training_batch)    # output shape = [N, 5 * KMIX]
 
                     # x.shape = [N, 1, FPS, 3]  y.shape = [N, K_MIXTURES*5]
-                    loss = self.train_criterion.likelihood_loss(training_batch.permute(0, 2, 3, 1), output).to(self.device)
+                    loss = self.train_criterion.likelihood_loss(training_batch.permute(0, 2, 3, 1), output) #.to(self.device)
                     
                     # Backward + optimize
                     loss.backward()

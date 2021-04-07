@@ -117,7 +117,7 @@ class BackgroundIterableDataset(IterableDataset):
         # in a worker process
         else:  
             # Split workload among workers
-            per_worker = int(math.ceil(self.dataset_size / float(worker_info.num_workers)))
+            # per_worker = int(math.ceil(self.dataset_size / float(worker_info.num_workers)))
 
             # We iterate all the pixel in the dataset
             current_step = 1
@@ -138,9 +138,6 @@ class BackgroundIterableDataset(IterableDataset):
     def __len__(self):
         # count = self.img_heigh*self.img_width
         count = self.img_heigh*self.img_width * ((self.data_len - self.FPS ) // self.stride)
-
-        # print("Init data length")
-
         return count 
 
 ###############################
