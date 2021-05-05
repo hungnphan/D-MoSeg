@@ -1,0 +1,19 @@
+{
+	"USE_MULTI_GPUS"					: 	true,
+	"sequence_dir"						:	"/home/hung/Desktop/dataset",
+	"foreground_training_data_dir"		:	"/home/hung/Desktop/training_dataset",
+	"scenario_name"						:	"dynamicBackground",
+	"sequence_name"						:	"fall",
+
+	"FPS"								:	240,
+	"KMIXTURE"							:	4,
+	"PIXEL_BATCH"						: 	128,
+
+	"LEARNING_RATE"						:	1e-4,
+	"EPOCHS"							:	1,
+	"SLIDING_STEP"						:	2,
+	"WINDOW_STRIDE"						: 	2,
+	
+	"CKPT_DIR"							: 	"training_ckpt",
+	"FG_TRAINING_DATA"					:	"fg_train_data"
+}
