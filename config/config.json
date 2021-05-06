@@ -1,6 +1,6 @@
 {
 	"USE_MULTI_GPUS"					: 	true,
-	"sequence_dir"						:	"/home/hung/Desktop/dataset",
+	"sequence_dir"						:	"/mnt/hdd12tb/synh/datasets/BGS-Datasets/CD2014",
 	"foreground_training_data_dir"		:	"/home/hung/Desktop/training_dataset",
 	"scenario_name"						:	"dynamicBackground",
 	"sequence_name"						:	"fall",
@@ -10,8 +10,8 @@
 	"PIXEL_BATCH"						: 	128,
 
 	"LEARNING_RATE"						:	1e-4,
-	"EPOCHS"							:	1,
-	"SLIDING_STEP"						:	2,
+	"EPOCHS"							:	2,
+	"SLIDING_STEP"						:	80,
 	"WINDOW_STRIDE"						: 	2,
 	
 	"CKPT_DIR"							: 	"training_ckpt",
