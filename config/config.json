@@ -1,0 +1,19 @@
+{
+	"USE_MULTI_GPUS"					: 	true,
+	"sequence_dir"						:	"data/cdnet",
+	"foreground_training_data_dir"		:	"data/fg200",
+	"scenario_name"						:	"badWeather",
+	"sequence_name"						:	"skating",
+
+	"FPS"								:	240,
+	"KMIXTURE"							:	4,
+	"PIXEL_BATCH"						: 	128,
+
+	"LEARNING_RATE"						:	1e-4,
+	"EPOCHS"							:	1,
+	"SLIDING_STEP"						:	2,
+	"WINDOW_STRIDE"						: 	2,
+	
+	"CKPT_DIR"							: 	"training_ckpt",
+	"FG_TRAINING_DATA"					:	"data/fg_train_data"
+}
