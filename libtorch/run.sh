@@ -7,13 +7,13 @@ echo -e "\nbatch_size,num_proc,threshold_value,num_messages,training_duration\n"
 threstype=0
 # thresval=0.01
 # batchsize=2
-numepoch=5
+numepoch=10
 logging=1
-logfreq=20
+logfreq=50
 
-batchsizes=( 4 8 12)
-numprocs=( 2 4 8 12 16 20 24)
-maxproc=( 20 12 8)
+batchsizes=( 4 8 12 )
+numprocs=( 2 4 8 )
+maxproc=( 20 12 8 )
 thresvals=(
 	0.0001 0.0002 0.0004 0.0006 0.0008 
 	0.001 0.002 0.004 0.006 0.008 
@@ -41,7 +41,7 @@ do
 			echo "Running ${numproc} processes with ${numepoch} epoches: thresval=${thresval}, batch_sz=${batchsizes[$i]}"
 			echo -e "---------------------------------------------------------------\n"
 
-			upcxx-run -n ${numproc} example-app ${threstype} ${thresval} ${batchsizes[$i]} ${numepoch} ${logging} ${logfreq}
+		upcxx-run -n ${numproc} example-app ${threstype} ${thresval} ${batchsizes[$i]} ${numepoch} ${logging} ${logfreq}
 		done
 		
 	done
