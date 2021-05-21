@@ -59,10 +59,11 @@ std::map<std::string, std::vector<std::string>> const cdnet_data {
 };
 
 std::map<int,int> nproc_per_gpu_by_batch_size {
-    { 2, 14 },
-    { 4, 10 },
-    { 8, 6 },
-    { 12, 4 },
+    { 2,  12 },
+    { 4,  16 },
+    { 8,  7 },
+    { 12, 6 },
+    { 16, 4 }
 };
 
 std::pair<std::string,std::string> query_data(int proc_id);
@@ -138,8 +139,10 @@ int main(int argc, char* argv[]){
               << std::endl;
 
     // Set device CPU or GPU (if available)
+    int ngpus = 2;
     int nproc_per_gpu = nproc_per_gpu_by_batch_size[batch_size];
     int gpu_idx = (int) ( 1.0*rank_me / (1.0*nproc_per_gpu) );
+    gpu_idx = std::min(ngpus-1, gpu_idx);
     torch::Device device(torch::cuda::is_available() ? 
                             /*torch::DeviceType=*/ torch::kCUDA :
                             /*torch::DeviceType=*/ torch::kCPU, 
