@@ -1,0 +1,14 @@
+# Exclude all files and folders within the data folder
+
+data/*
+!data/link.txt
+!data/
+
+libtorch/data/*
+!libtorch/data/
+!libtorch/data/link.txt
+
+libtorch/build/*
+!libtorch/build/
+
+

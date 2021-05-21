@@ -1,0 +1,7 @@
+mkdir fg_train_data
+mkdir fg_train_frame
+
+ln -s /home/hung/Desktop/dataset cdnet
+ln -s /home/hung/Desktop/training_dataset fg200
+
+
