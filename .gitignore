@@ -11,4 +11,5 @@ libtorch/data/*
 libtorch/build/*
 !libtorch/build/
 
+libtorch/core.*
 

@@ -59,8 +59,8 @@ std::map<std::string, std::vector<std::string>> const cdnet_data {
 };
 
 std::map<int,int> nproc_per_gpu_by_batch_size {
-    { 2,  12 },
-    { 4,  16 },
+    { 2,  16 },
+    { 4,  12 },
     { 8,  7 },
     { 12, 6 },
     { 16, 4 }
@@ -265,7 +265,7 @@ int main(int argc, char* argv[]){
             // Begin parameter loop
             for(int i = 0 ; i < sz ; i++){
                 
-                upcxx::barrier();
+                // upcxx::barrier();
 
                 // Get dimensions of tensor
                 std::vector<int64_t> dim_array;
