@@ -7,19 +7,19 @@ echo -e "\nbatch_size,num_proc,threshold_value,num_messages,training_duration\n"
 threstype=0
 # thresval=0.01
 # batchsize=2
-numepoch=5
+numepoch=200
 logging=1
 logfreq=50
 
-batchsizes=( 4 8 12 16 )
-numprocs=( 2 4 8 12 16 )
-maxproc=( 27 16 12 6 )
+batchsizes=( 4 8 )
+numprocs=( 2 4 8 16 )
+maxproc=( 27 16 )
 thresvals=(
         # 0.7777
 	0.0001 0.0002 0.0004 0.0006 0.0008 
 	0.001 0.002 0.004 0.006 0.008 
 	0.01 0.02 0.04 0.06 0.08 
-	# 0.1 0.2 0.4 
+	0.1 0.2 0.4 
 	# 0.6 0.8
 	# 1.0 2.0 10.0 20.0 50.0
 )
