@@ -6,8 +6,8 @@
                 "${workspaceFolder}/**",
                 "/home/hung/libtorch/include",
                 "/home/hung/libtorch/include/torch/csrc/api/include",
-                "/home/hung/upcxx-2021.3.0/upcxx.debug.gasnet_par.smp/include",
-                "/home/hung/upcxx-2021.3.0/gasnet.debug/include"
+                "/home/hung/upcxx/upcxx.debug.gasnet_par.smp/include",
+                "/home/hung/upcxx/gasnet.debug/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

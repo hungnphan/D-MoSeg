@@ -28,6 +28,6 @@ if __name__ == '__main__':
                                            scenario_name=scenario, 
                                            sequence_name=sequence)
             # Execute the generator
-            # fg_generator.prepare_fg_training_data()
-            # fg_generator.check_fg_training_data()
+            fg_generator.prepare_fg_training_data()
+            fg_generator.check_fg_training_data()
             fg_generator.export_fg_training_data()

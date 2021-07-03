@@ -52,7 +52,7 @@ public:
             + this->scenario_name + "/" 
             + this->sequence_name + "/"
             + index_str;
-                
+        
         // Read in, bg, fg images with opencv
         cv::Mat in_img = cv::imread(path_to_data + "_in.png", cv::IMREAD_COLOR);
         cv::Mat bg_img = cv::imread(path_to_data + "_bg.png", cv::IMREAD_COLOR);
@@ -65,7 +65,7 @@ public:
         
         // Concat data tensor: [input_img, bg_img, fg_img] with shape [W, H, 7]
         torch::Tensor data = torch::cat({in_tsr, bg_tsr}, -1);  
-         
+        
         // Transpose: [W,H,C] -> [C,W,H]
         data = data.permute({2,0,1}).contiguous();
         fg_tsr = fg_tsr.permute({2,0,1}).contiguous();       

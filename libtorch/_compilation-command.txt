@@ -14,4 +14,10 @@ rm -rf * \
 && cmake --build . --config Debug \
 && cp example-app ../
 
+############################################################
 
+# Run command
+ 
+./example-app 0 0.005 4 20 1 10 1
+
+upcxx-run -n 2 example-app 0 0.005 4 20 1 10 1

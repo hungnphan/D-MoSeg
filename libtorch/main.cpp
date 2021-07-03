@@ -76,6 +76,7 @@ std::pair<std::string,std::string> query_data(int proc_id);
 // <num_epoch>      : int   is the number of epoch to loop through the dataset
 // <logging>        : int   is flag for log printing (0 for hidden, 1 for display), default is 1
 // <log_freq>       : int   is the frequency of logging printing, default 5
+// <use_gpu>        : int   is use the GPU for training or not, default 0
 ////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[]){
 
@@ -90,6 +91,7 @@ int main(int argc, char* argv[]){
         std::cout << " <num_epoch>  : int : the number of epoch to loop through the dataset\n";
         std::cout << " <logging>    : int : flag for log printing (0 for hidden, 1 for display)\n";
         std::cout << " <log_freq>   : int : frequency of logging printing\n";
+        std::cout << " <use_gpu>    : int : is use the GPU for training or not, default 0\n";
         std::cout << "------------------------------------\n";
 
         return 0;
@@ -138,30 +140,33 @@ int main(int argc, char* argv[]){
               << std::endl;
 
     // Set device CPU or GPU (if available)
-    int nproc_per_gpu = nproc_per_gpu_by_batch_size[batch_size];
-    int gpu_idx = (int) ( 1.0*rank_me / (1.0*nproc_per_gpu) );
-    torch::Device device(torch::cuda::is_available() ? 
-                            /*torch::DeviceType=*/ torch::kCUDA :
-                            /*torch::DeviceType=*/ torch::kCPU, 
-                         /*int device_idx=*/ gpu_idx);
-
+    int nproc_per_gpu   = nproc_per_gpu_by_batch_size[batch_size];
+    int gpu_idx         = (int) ( 1.0*rank_me / (1.0*nproc_per_gpu) );
+    int is_use_gpu      = (int) std::atoi(argv[7]);
+    torch::Device device(/*torch::DeviceType=*/ torch::kCPU          // Use CPU for training
+                         /*int device_idx=*/ /*gpu_idx*/);
+    if(is_use_gpu)
+        device = torch::Device(torch::cuda::is_available() ?         // Use GPU for training
+                                  /*torch::DeviceType=*/  torch::kCUDA :
+                                  /*torch::DeviceType=*/  torch::kCPU, 
+                               /*int device_idx=*/ gpu_idx);
+      
     // Init model and put model to device
-    Model fdn_net;
-    fdn_net.to(device);
+    FDNet fdn_net;
+    fdn_net->to(device);
 
     // Init optimizer
     torch::optim::Adam optimizer(
-        fdn_net.parameters(), 
+        fdn_net->parameters(), 
         torch::optim::AdamOptions(5e-3)
     );
-
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // Control variables for event-triggered communication
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Collect #layers, #params, data-type size
-    auto param = fdn_net.named_parameters();                  // model param <key,value>: torch::OrderedDict< std::string, torch::Tensor >
+    auto param = fdn_net->named_parameters();                  // model param <key,value>: torch::OrderedDict< std::string, torch::Tensor >
     size_t sz = param.size();                                 // number of weights' elements
     size_t param_elem_size = param[0].value().element_size(); // sizeof(dtype)
 
@@ -239,10 +244,10 @@ int main(int argc, char* argv[]){
             auto data = batch.data.to(torch::kFloat32).to(device) / 255.0;
             auto target = batch.target.to(torch::kFloat32).to(device) / 255.0;
 
-            fdn_net.zero_grad();
+            fdn_net->zero_grad();
 
             // Feed forward
-            torch::Tensor pred_output = fdn_net.forward(data);
+            torch::Tensor pred_output = fdn_net->forward(data);
 
             // Calculate loss
             torch::Tensor loss = model_loss(pred_output, target);
@@ -262,7 +267,7 @@ int main(int argc, char* argv[]){
             // Begin parameter loop
             for(int i = 0 ; i < sz ; i++){
                 
-                upcxx::barrier();
+                // upcxx::barrier();
 
                 // Get dimensions of tensor
                 std::vector<int64_t> dim_array;
@@ -444,12 +449,12 @@ int main(int argc, char* argv[]){
             acc_val += acc.item<float>();
             
             if( (is_logging == 1) && ((pass_num) % logging_frequency == 0) )
-                std::cout << "step = " << (pass_num) << "\t"
-                          << "proc-id = " << rank_me << "\t"
-                          << "num_events = " << num_events << "\t"
-                          << std::fixed << std::setprecision(7) << "\t"
-                          << "Loss = " << loss_val/pass_num << "\t"
-                          << "Acc = " << acc_val/pass_num << "\n";
+                std::cout << "step = "          << (pass_num) << "\t"
+                          << "proc-id = "       << rank_me << "\t"
+                          << "num_events = "    << num_events << "\t"
+                          << std::fixed         << std::setprecision(7) << "\t"
+                          << "Loss = "          << loss_val/pass_num << "\t"
+                          << "Acc = "           << acc_val/pass_num << "\n";
 
         }   // End data loop via batches        
     }   // End primary training loop
