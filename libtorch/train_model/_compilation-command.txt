@@ -1,0 +1,23 @@
+# Compile with UPC++
+
+rm -rf * \
+&& cmake -DCMAKE_PREFIX_PATH="~/libtorch" -DCMAKE_CXX_COMPILER=upcxx -DCMAKE_CXX_FLAGS="-O " .. \
+&& cmake --build . --config Debug \
+&& cp example-app ../
+
+############################################################
+
+# No UPC++
+
+rm -rf * \
+&& cmake -DCMAKE_PREFIX_PATH="~/libtorch" .. \
+&& cmake --build . --config Debug \
+&& cp example-app ../
+
+############################################################
+
+# Run command
+ 
+./example-app 0 0.005 4 20 1 10 1
+
+upcxx-run -n 2 example-app 0 0.05 4 2 1 5 1

@@ -20,7 +20,9 @@ if __name__ == '__main__':
 
     for scenario in cdnet_data:
         for sequence in cdnet_data[scenario]:
-            
+            if(scenario != "intermittentObjectMotion") or (sequence != "streetLight"):
+                continue
+
             print(f"----- Generate foreground data for scenario `{scenario}` - sequence `{sequence}`` -----")
 
             # Init FgDataGenerator
@@ -29,5 +31,5 @@ if __name__ == '__main__':
                                            sequence_name=sequence)
             # Execute the generator
             fg_generator.prepare_fg_training_data()
-            fg_generator.check_fg_training_data()
+            # fg_generator.check_fg_training_data()
             fg_generator.export_fg_training_data()

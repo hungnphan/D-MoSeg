@@ -54,7 +54,7 @@ class FgDataGenerator:
         for file_name in file_names:
             if file_name.startswith('gt') and file_name.endswith('.png'):      
                 labelled_indices.append(int(file_name[2:8]))
-        # print(len(labelled_indices))
+        print("len(labelled_indices) =", len(labelled_indices))
 
         # Create a h5py file stream 
         # print(data_loader.img_heigh, data_loader.img_width)

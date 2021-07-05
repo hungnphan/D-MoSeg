@@ -4,11 +4,11 @@ data/*
 !data/link.txt
 !data/
 
-libtorch/data/*
-!libtorch/data/
-!libtorch/data/link.txt
+libtorch/train_model/data/*
+!libtorch/train_model/data/
+!libtorch/train_model/data/link.txt
 
-libtorch/build/*
-!libtorch/build/
+libtorch/train_model/build/*
+!libtorch/train_model/build/
 
 

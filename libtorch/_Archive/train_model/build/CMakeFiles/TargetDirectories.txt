@@ -1,0 +1,3 @@
+/home/hung/Desktop/CDN_Torch/libtorch/train_model/build/CMakeFiles/rebuild_cache.dir
+/home/hung/Desktop/CDN_Torch/libtorch/train_model/build/CMakeFiles/edit_cache.dir
+/home/hung/Desktop/CDN_Torch/libtorch/train_model/build/CMakeFiles/example-app.dir

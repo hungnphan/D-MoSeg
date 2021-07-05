@@ -5,7 +5,7 @@
 // @project : Distributed training of Foreground Detection Network with Event-Triggered Data Parallelism
 // @licensed: N/A
 // @created : 10/05/2021
-// @modified: 17/05/2021
+// @modified: 03/07/2021
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,6 +36,10 @@
 #include <chrono>               // timing
 #include <ctime>
 
+#include <sys/types.h>          // file system linux
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "custom_dataset.h"     // data loader for custom dataset
 #include "util.h"               // data conversion: torch::Tensor and cv::Mat
 #include "model.h"              // implementation of FDN on TorchLib
@@ -49,15 +53,16 @@ std::map<std::string, std::vector<std::string>> const cdnet_data {
    { "baseline",                    { "highway","office","pedestrians","PETS2006" } },
    { "cameraJitter",                { "badminton","boulevard","sidewalk","traffic" } },
    { "dynamicBackground",           { "boats","canoe","fall","fountain01","fountain02","overpass" } },
-   { "intermittentObjectMotion",    { "abandonedBox","parking","sofa","tramstop","winterDriveway" } },
+   { "intermittentObjectMotion",    { "abandonedBox","parking","sofa","streetLight","tramstop","winterDriveway" } },
    { "lowFramerate",                { "port_0_17fps","tramCrossroad_1fps","tunnelExit_0_35fps","turnpike_0_5fps" } },
    { "nightVideos",                 { "bridgeEntry","busyBoulvard","fluidHighway","streetCornerAtNight","tramStation","winterStreet" } },
-   { "PTZ",                         { "continuousPan","intermittentPan","twoPositionPTZCam","zoomInZoomOut" } },
+//    { "PTZ",                         { "continuousPan","intermittentPan","twoPositionPTZCam","zoomInZoomOut" } },
    { "shadow",                      { "backdoor","bungalows","busStation","copyMachine","cubicle","peopleInShade" } },
    { "thermal",                     { "corridor","diningRoom","lakeSide","library","park" } },
    { "turbulence",                  { "turbulence0","turbulence1","turbulence2","turbulence3" } }
 };
 
+// Limit the max number of processes by GPU memory
 std::map<int,int> nproc_per_gpu_by_batch_size {
     { 2, 14 },
     { 4, 10 },
@@ -66,6 +71,8 @@ std::map<int,int> nproc_per_gpu_by_batch_size {
 };
 
 std::pair<std::string,std::string> query_data(int proc_id);
+
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // ------- ARGUMENT DESCRIPTION -------
@@ -80,6 +87,9 @@ std::pair<std::string,std::string> query_data(int proc_id);
 ////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[]){
 
+    /////////////////////////////////////////////////////////////////////
+    // ARGUMENT ASSESSMENT
+    /////////////////////////////////////////////////////////////////////
     if(argc < 5){
         std::cout << "Please input all necessary arguments:\n";
         std::cout << "------------------------------------\n";
@@ -98,20 +108,30 @@ int main(int argc, char* argv[]){
     }
 
 
-    // Setup UPC++ runtime
+    /////////////////////////////////////////////////////////////////////
+    // SET UP UPCXX RUN-TIME
+    /////////////////////////////////////////////////////////////////////
     upcxx::init();
     int rank_me     = upcxx::rank_me();    // 0
     int rank_n      = upcxx::rank_n();     // 3
     int rank_left   = (rank_me-1+rank_n) % rank_n;
     int rank_right  = (rank_me+1) % rank_n;
 
-    // Create config for the model
+
+    /////////////////////////////////////////////////////////////////////
+    // CONFIGURE MODEL PARAMS
+    /////////////////////////////////////////////////////////////////////
     Config config;
     std::pair<std::string,std::string> data_of_me = query_data(rank_me);
     config.scenario_name = data_of_me.first;
     config.sequence_name = data_of_me.second;
 
-    // Initialize custom dataset for foreground training
+
+    /////////////////////////////////////////////////////////////////////
+    // INITIALIZE DATASET AND LOADER FOR TRAINING
+    /////////////////////////////////////////////////////////////////////
+    
+    // Custom dataset for foreground: 200 samples/sequence from FgSegNet
     auto dataset = CustomDataset(
         0,                           // proc_id
         1,                           // num_proc   
@@ -120,7 +140,7 @@ int main(int argc, char* argv[]){
         config.sequence_name         // sequence_name
     ).map(torch::data::transforms::Stack<>());
 
-    // Generate a data loader with fixed batch size
+    // Data sampler to load batch of samples
     int batch_size = (int) std::atoi(argv[3]);
     auto data_loader_options =  torch::data::DataLoaderOptions(batch_size).workers(2).max_jobs(2);
 
@@ -139,36 +159,73 @@ int main(int argc, char* argv[]){
               << " --- " << std::round(1.0*dataset_size/batch_size) << " steps/epoch"
               << std::endl;
 
-    // Set device CPU or GPU (if available)
+
+    /////////////////////////////////////////////////////////////////////
+    // SPECIFY DEVICE FOR MODEL TRAINING
+    /////////////////////////////////////////////////////////////////////
     int nproc_per_gpu   = nproc_per_gpu_by_batch_size[batch_size];
     int gpu_idx         = (int) ( 1.0*rank_me / (1.0*nproc_per_gpu) );
     int is_use_gpu      = (int) std::atoi(argv[7]);
-    torch::Device device(/*torch::DeviceType=*/ torch::kCPU          // Use CPU for training
-                         /*int device_idx=*/ /*gpu_idx*/);
+    
+    // Default is CPU
+    torch::Device device(/*torch::DeviceType=*/     torch::kCPU          // Use CPU for training
+                         /*int device_idx=*/        /*gpu_idx*/);
+    
+    // Use GPU if CUDA is available
     if(is_use_gpu)
-        device = torch::Device(torch::cuda::is_available() ?         // Use GPU for training
+        device = torch::Device(torch::cuda::is_available() ?            // Use GPU for training
                                   /*torch::DeviceType=*/  torch::kCUDA :
                                   /*torch::DeviceType=*/  torch::kCPU, 
                                /*int device_idx=*/ gpu_idx);
-      
-    // Init model and put model to device
+
+
+    /////////////////////////////////////////////////////////////////////  
+    // INITIALIZE MODEL OF FDNet
+    /////////////////////////////////////////////////////////////////////
+    
+    // Initialize FDNet model
     FDNet fdn_net;
     fdn_net->to(device);
 
-    // Init optimizer
+    // Check and load pre-trained model (if available)
+    std::string file_weight_name = std::to_string(rank_n) + "proc_" 
+                                    + "batch" + std::to_string(batch_size) 
+                                    + "_thres" + std::string(argv[2]) 
+                                    + ".pt";
+    std::string path_to_weight = std::string("pretrained/") + file_weight_name;
+
+    // if pre-trained path exists
+    struct stat st = {0};
+    if (stat("pretrained", &st) != -1){  
+
+        // if pre-trained weight exists
+        if (stat(path_to_weight.c_str(), &st) != -1){     
+            // Load the model
+            torch::load(fdn_net, path_to_weight);
+
+            // Warning a message
+            std::cout << "FDNet is loaded with pretrained weight from " << path_to_weight << "\n";
+        }
+    }
+
+
+    /////////////////////////////////////////////////////////////////////
+    // INITIALIZE OPTIMIZER
+    /////////////////////////////////////////////////////////////////////
     torch::optim::Adam optimizer(
         fdn_net->parameters(), 
         torch::optim::AdamOptions(5e-3)
     );
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Control variables for event-triggered communication
-    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////
+    // CONTROL VARIABLES FOR EVENT-TRIGGERED COMMUNICATION
+    /////////////////////////////////////////////////////////////////////
 
     // Collect #layers, #params, data-type size
-    auto param = fdn_net->named_parameters();                  // model param <key,value>: torch::OrderedDict< std::string, torch::Tensor >
-    size_t sz = param.size();                                 // number of weights' elements
-    size_t param_elem_size = param[0].value().element_size(); // sizeof(dtype)
+    auto param = fdn_net->named_parameters();                   // model param <key,value>: torch::OrderedDict< std::string, torch::Tensor >
+    size_t sz = param.size();                                   // number of weights' elements
+    size_t param_elem_size = param[0].value().element_size();   // sizeof(dtype)
 
     // count #elements in model
     int num_elem_param = 0;                     
@@ -209,9 +266,9 @@ int main(int argc, char* argv[]){
     float right_recv_norm[sz]                    = {0.0};
 
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Model training
-    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////
+    // CONFIGS FOR MODEL TRAINING
+    /////////////////////////////////////////////////////////////////////
 
     // Set training iterations and logging frequency
     int num_epochs          = (int) std::atoi(argv[4]);                      // number of epochs (#times loops over dataset)
@@ -225,12 +282,29 @@ int main(int argc, char* argv[]){
     float loss_val  = 0.0;
     float acc_val   = 0.0;
 
-    std::cout << "Starting model training ..." << "\n";
 
+    /////////////////////////////////////////////////////////////////////
+    // START TRAINING LOOP
+    /////////////////////////////////////////////////////////////////////
+
+    // Wait for all processes to complete initialization
     upcxx::barrier();
+    std::cout << "Starting model training ..." << "\n";
 
     // Start the timer
     clock_t time_start = clock();
+
+    // Open file stream to record training log of loss and accuracy
+    std::ofstream logging_file;
+    std::string file_log_name = "loss-acc_" + std::to_string(rank_n) + "proc_" 
+                                    + "batch" + std::to_string(batch_size) 
+                                    + "_thres" + std::string(argv[2]) 
+                                    + ".csv";
+    logging_file.open ("log/"+file_log_name, std::ofstream::app);
+    logging_file << "Epoch" << ","
+                 << "Loss" << ","
+                 << "Acc" << "\n";
+    logging_file.close();
 
     // Start primary training loop
     for(int epoch=0;epoch<num_epochs;epoch++){
@@ -267,7 +341,7 @@ int main(int argc, char* argv[]){
             // Begin parameter loop
             for(int i = 0 ; i < sz ; i++){
                 
-                // upcxx::barrier();
+                upcxx::barrier();
 
                 // Get dimensions of tensor
                 std::vector<int64_t> dim_array;
@@ -456,10 +530,23 @@ int main(int argc, char* argv[]){
                           << "Loss = "          << loss_val/pass_num << "\t"
                           << "Acc = "           << acc_val/pass_num << "\n";
 
-        }   // End data loop via batches        
+        }   // End data loop via batches
+
+        if (rank_me == 0){
+            logging_file.open ("log/"+file_log_name, std::ofstream::app);
+            logging_file << epoch       << ","
+                         << loss_val    << ","
+                         << acc_val     << "\n";
+            logging_file.close();
+        }        
+
     }   // End primary training loop
 
-    // Averaging learned params at rank 0
+
+    /////////////////////////////////////////////////////////////////////
+    // AVERAGING MODEL PARAMETERS AT RANK 0
+    /////////////////////////////////////////////////////////////////////
+
     for (int i = 0; i < sz; i++) {
 
         torch::Tensor param_i_cpu = param[i].value().cpu();
@@ -480,26 +567,39 @@ int main(int argc, char* argv[]){
         }
     }
 
-    // Get ready for calculating number of messages
-    upcxx::barrier();
+    /////////////////////////////////////////////////////////////////////
+    // SAVE MODEL (AVERAGING PARAMS) TO FILE AT RANK 0
+    /////////////////////////////////////////////////////////////////////
+    if (rank_me == 0){
+        torch::save(fdn_net, path_to_weight);
+    }
 
+    /////////////////////////////////////////////////////////////////////
+    // COUNT THE NUMBER OF MESSAGES AND END TIMER
+    /////////////////////////////////////////////////////////////////////
+    
+    // Get ready for calculating number of messages
     // Collect number of communicating message in work group    
+    upcxx::barrier();
     num_events = upcxx::reduce_all(
         num_events, 
         upcxx::op_fast_add
-    ).wait();
-    
+    ).wait();    
     upcxx::barrier();
 
     // End timer
     clock_t time_end = clock();
     double elapsed_secs = double(time_end - time_start) / CLOCKS_PER_SEC;
 
+
+    /////////////////////////////////////////////////////////////////////
+    // EXPORT COLLECTED INFO
+    /////////////////////////////////////////////////////////////////////
     if (rank_me == 0){
         std::cout << "Total number of events - " << num_events << std::endl;
 
         std::ofstream result_file;
-        result_file.open ("benchmark_result.csv", std::ofstream::app);
+        result_file.open ("log/log_num_messages.csv", std::ofstream::app);
         result_file << batch_size << "," 
                     << rank_n << "," 
                     << constant << ","
@@ -508,7 +608,10 @@ int main(int argc, char* argv[]){
         result_file.close();
     }
     
-    // Close down UPC++ runtime
+
+    /////////////////////////////////////////////////////////////////////
+    // TERMINATE UPCXX RUN-TIME
+    /////////////////////////////////////////////////////////////////////
     upcxx::finalize();
 
     return 0;
