@@ -31,7 +31,7 @@ do
 			#echo "Running ${numproc} processes with ${numepoch} epoches: thresval=${thresval}, batch_sz=${batchsizes[$i]}"
 			#echo -e "---------------------------------------------------------------\n"
 
-			./example-app ${numproc} ${thresval} ${batchsizes[$i]} 0 16
+			./example-app ${numproc} ${thresval} ${batchsizes[$i]} 0 48
 			
 			#echo "./example-app ${numproc} ${thresval} ${batchsizes[$i]} 0 16"
 			
