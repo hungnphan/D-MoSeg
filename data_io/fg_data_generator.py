@@ -12,10 +12,10 @@ from data_io.bg_data_io import BgDataLoader
 
 
 class FgDataGenerator:
-    def __init__(self, config_file, scenario_name, sequence_name):    
+    def __init__(self, config_file, scenario_name, sequence_name, cuda_device):    
 
         # Specify device GPU if available
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = cuda_device if torch.cuda.is_available() else torch.device("cpu")
 
         # Read method params from json config file
         self.config = parse_config_from_json(config_file=config_file)  
@@ -25,7 +25,7 @@ class FgDataGenerator:
         self.sequence_name = sequence_name # self.config.sequence_name
 
         # Initialize data_loader
-        self.data_loader = BgDataLoader(self.config, scenario_name=self.scenario_name, sequence_name=self.sequence_name)
+        self.data_loader = BgDataLoader(self.config, scenario_name=self.scenario_name, sequence_name=self.sequence_name,cuda_device=self.device)
 
         # Define Convolutional Density Network
         self.cdn_net = CDN(self.config.KMIXTURE, \

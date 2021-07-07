@@ -2,17 +2,8 @@ from data_io.fg_data_generator import FgDataGenerator
 import torch
 
 cdnet_data = {
-    "badWeather"                : ["blizzard","skating","snowFall","wetSnow"],
-    "baseline"                  : ["highway","office","pedestrians","PETS2006"],
     "cameraJitter"              : ["badminton","boulevard","sidewalk","traffic"],
-    "dynamicBackground"         : ["boats","canoe","fall","fountain01","fountain02","overpass"],
-    "intermittentObjectMotion"  : ["abandonedBox","parking","sofa","streetLight","tramstop","winterDriveway"],
-    "lowFramerate"              : ["port_0_17fps","tramCrossroad_1fps","tunnelExit_0_35fps","turnpike_0_5fps"],
-    "nightVideos"               : ["bridgeEntry","busyBoulvard","fluidHighway","streetCornerAtNight","tramStation","winterStreet"],
-    "PTZ"                       : ["continuousPan","intermittentPan","twoPositionPTZCam","zoomInZoomOut"],
-    "shadow"                    : ["backdoor","bungalows","busStation","copyMachine","cubicle","peopleInShade"],
-    "thermal"                   : ["corridor","diningRoom","lakeSide","library","park"],
-    "turbulence"                : ["turbulence0","turbulence1","turbulence2","turbulence3"]
+    "dynamicBackground"         : ["boats","canoe","fall","fountain01"]
 }
 
 if __name__ == '__main__':

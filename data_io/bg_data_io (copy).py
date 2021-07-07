@@ -5,12 +5,11 @@ import torch
 import os
 
 class BgDataLoader:
-    def __init__(self, args, scenario_name, sequence_name, cuda_device):
+    def __init__(self, args, scenario_name, sequence_name):
         self.sequence_dir = args.sequence_dir    # path to CDnet/scenario/sequence
         self.scenario_name = scenario_name
         self.sequence_name = sequence_name
 
-        self.device = cuda_device if torch.cuda.is_available() else torch.device("cpu")
 
         self.FPS = args.FPS
         self.data_path = None
@@ -49,8 +48,8 @@ class BgDataLoader:
 
     def __init_data_frame__(self):
 
-        self.data_frame = torch.FloatTensor(self.img_heigh*self.img_width, \
-                                            self.img_channel, 1, self.FPS).fill_(0).to(self.device)
+        self.data_frame = torch.cuda.FloatTensor(self.img_heigh*self.img_width, \
+                                                 self.img_channel, 1, self.FPS).fill_(0)
 
         for frame_idx in range(self.FPS):
             # count the reading frame
@@ -63,7 +62,7 @@ class BgDataLoader:
             img_reshape = img.reshape([self.img_heigh * self.img_width, self.img_channel, 1])
 
             # [H*W, C, 1, FPS]: append image to Torch tensor
-            self.data_frame[..., self.current_frame_idx % self.FPS] = (torch.from_numpy(img_reshape).float() / 255.0).to(self.device)
+            self.data_frame[..., self.current_frame_idx % self.FPS] = (torch.from_numpy(img_reshape).float() / 255.0).cuda()
        
         return
 
@@ -85,7 +84,7 @@ class BgDataLoader:
             img_reshape = img.reshape([self.img_heigh * self.img_width, self.img_channel, 1])
 
             # [H*W, C, 1, FPS]: append image to Torch tensor
-            self.data_frame[..., self.current_frame_idx % self.FPS] = (torch.from_numpy(img_reshape).float() / 255.0).to(self.device)
+            self.data_frame[..., self.current_frame_idx % self.FPS] = (torch.from_numpy(img_reshape).float() / 255.0).cuda()
 
             return True 
 
