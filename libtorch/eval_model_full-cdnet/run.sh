@@ -9,8 +9,8 @@ numepoch=5
 logging=1
 logfreq=20
 
-batchsizes=( 2 )
-numprocs=( 4 8 16 )
+batchsizes=( 4 )
+numprocs=( 2 4 8 16 )
 thresvals=(
 	0.0
 	0.0001 0.00025 0.0005 0.00075

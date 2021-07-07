@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # Path to config file
     config_file = 'config/config.json'
 
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:1')
 
     for scenario in cdnet_data:
         for sequence in cdnet_data[scenario]:
