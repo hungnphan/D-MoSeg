@@ -46,79 +46,75 @@ class FgDataGenerator:
         self.cdn_net.eval()
 
         # Iterate all file in fg groundtruth file
-        # fg_gt_path = os.path.join(self.config.foreground_training_data_dir, self.scenario_name, self.sequence_name+"200")
-
-        fg_gt_path = os.path.join("data","cdnet",self.scenario_name, self.sequence_name,"groundtruth")
+        fg_gt_path = os.path.join(self.config.foreground_training_data_dir, self.scenario_name, self.sequence_name+"200")
 
         # Extract frame_idx of labelled foreground
-        # file_names = sorted(os.listdir(fg_gt_path))
-        # labelled_indices = []
-        # for file_name in file_names:
-        #     if file_name.startswith('gt') and file_name.endswith('.png'):      
-        #         labelled_indices.append(int(file_name[2:8]))
-        # print("len(labelled_indices) =", len(labelled_indices))
+        file_names = sorted(os.listdir(fg_gt_path))
+        labelled_indices = []
+        for file_name in file_names:
+            if file_name.startswith('gt') and file_name.endswith('.png'):      
+                labelled_indices.append(int(file_name[2:8]))
+        print("len(labelled_indices) =", len(labelled_indices))
 
         # Create a h5py file stream 
         # print(data_loader.img_heigh, data_loader.img_width)
-        # fg_data_file = os.path.join(self.config.FG_TRAINING_DATA, self.scenario_name + "_" + self.sequence_name + ".hdf5")
-        # h5py_writer = h5py.File(fg_data_file, "w")
-
-        # Export data to a sequence of frames
-        export_dir = os.path.join("data","fg_eval_frame",self.scenario_name, self.sequence_name)
-        if not os.path.exists(export_dir):
-            os.makedirs(export_dir)
+        fg_data_file = os.path.join(self.config.FG_TRAINING_DATA, self.scenario_name + "_" + self.sequence_name + ".hdf5")
+        h5py_writer = h5py.File(fg_data_file, "w")
 
         # Extract a pair of [input_frame, bg, fg] corresponding with idx in labelled_indices
         data_idx = -1
         for frame_idx in range (self.config.FPS, self.data_loader.data_len):
+            # Break the loop if data is out of labelled range
+            if (frame_idx+1) > labelled_indices[-1]:
+                break
 
-            # Set data_index
-            data_idx = data_idx + 1
-            
-            if (data_idx + 1) % 50 == 0:
-                print("Sampling %03d" % data_idx)
-            
-            # Get input image
-            input_img = (self.data_loader.data_frame[..., (self.data_loader.current_frame_idx % self.data_loader.FPS)] * 255.0).type(torch.uint8).cpu().data.numpy()
-            input_img = input_img.reshape([self.data_loader.img_heigh, self.data_loader.img_width, self.data_loader.img_channel])
+            # If the frame_idx has labelled foreground
+            if (frame_idx + 1) in labelled_indices:
+                # Set data_index
+                data_idx = data_idx + 1
+                
+                if (data_idx + 1) % 50 == 0:
+                    print("Sampling %03d" % data_idx)
+                
+                # Get input image
+                input_img = (self.data_loader.data_frame[..., (self.data_loader.current_frame_idx % self.data_loader.FPS)] * 255.0).type(torch.uint8).cpu().data.numpy()
+                input_img = input_img.reshape([self.data_loader.img_heigh, self.data_loader.img_width, self.data_loader.img_channel])
 
-            # Get background image
-            bg_img = self.cdn_net.calculate_background(self.data_loader.data_frame, batch_size = 256)
+                # Get background image
+                bg_img = self.cdn_net.calculate_background(self.data_loader.data_frame, batch_size = 256)
 
-            # Get foreground image 
-            # fg_img = cv.imread(os.path.join(fg_gt_path,"gt%06d.png" % (frame_idx + 1)), cv.IMREAD_GRAYSCALE)
-            fg_img = cv.imread(os.path.join(fg_gt_path,"gt%06d.png" % (frame_idx + 1)), cv.IMREAD_GRAYSCALE)
+                # Get foreground image 
+                fg_img = cv.imread(os.path.join(fg_gt_path,"gt%06d.png" % (frame_idx + 1)), cv.IMREAD_GRAYSCALE)
 
-            # Resize image to the dimension that is divisible vy 4
-            out_height = 4*(self.data_loader.img_heigh//4)
-            out_width = 4*(self.data_loader.img_width//4)
-            input_img = cv.resize(input_img, (out_width, out_height))
-            bg_img = cv.resize(bg_img, (out_width, out_height))
-            fg_img = cv.resize(fg_img, (out_width, out_height))
+                # Resize image to the dimension that is divisible vy 4
+                out_height = 4*(self.data_loader.img_heigh//4)
+                out_width = 4*(self.data_loader.img_width//4)
+                input_img = cv.resize(input_img, (out_width, out_height))
+                bg_img = cv.resize(bg_img, (out_width, out_height))
+                fg_img = cv.resize(fg_img, (out_width, out_height))
 
-            # Preprocess fg image:
-            #   Set boundary + shadow -> 255
-            #   Set ignore region     -> 0
-            raw_fg = fg_img
-            fg_img = np.zeros_like(raw_fg)
-            fg_binary_mask = np.logical_or(raw_fg>=170,raw_fg==50)
-            fg_img[fg_binary_mask] = 255
+                # Preprocess fg image:
+                #   Set boundary + shadow -> 255
+                #   Set ignore region     -> 0
+                raw_fg = fg_img
+                fg_img = np.zeros_like(raw_fg)
+                fg_binary_mask = np.logical_or(raw_fg>=170,raw_fg==50)
+                fg_img[fg_binary_mask] = 255
 
-            # Create data tensor
-            fg_img = np.expand_dims(fg_img, axis=-1)
-            output_tensor = np.concatenate([input_img, bg_img, fg_img], axis=-1)
+                # Create data tensor
+                fg_img = np.expand_dims(fg_img, axis=-1)
+                output_tensor = np.concatenate([input_img, bg_img, fg_img], axis=-1)
 
-            # DEBUG: Display background image
-            # cv.imshow('Input image',output_tensor[...,:3])
-            # cv.imshow('Background image',output_tensor[...,3:6])
-            # cv.imshow('Foreground image',output_tensor[...,6])
-            # cv.imshow('Raw Foreground image',raw_fg)
-            # cv.waitKey(1)
+                # DEBUG: Display background image
+                # cv.imshow('Input image',output_tensor[...,:3])
+                # cv.imshow('Background image',output_tensor[...,3:6])
+                # cv.imshow('Foreground image',output_tensor[...,6])
+                # cv.imshow('Raw Foreground image',raw_fg)
+                # cv.waitKey(1)
 
-            # Export data to image files
-            cv.imwrite(os.path.join(export_dir,"%06d_in.png" % data_idx), input_img)
-            cv.imwrite(os.path.join(export_dir,"%06d_bg.png" % data_idx), bg_img)
-            cv.imwrite(os.path.join(export_dir,"%06d_fg.png" % data_idx), fg_img)
+                h5py_writer.create_dataset("%03d" % data_idx, 
+                                           shape=output_tensor.shape, dtype=np.uint8, data=output_tensor,
+                                           compression='gzip', compression_opts=9)
 
             # Shift the sliding windows for the next iteration
             self.data_loader.load_next_k_frame(1)
