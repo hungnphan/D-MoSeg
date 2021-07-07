@@ -8,6 +8,9 @@ libtorch/train_model/data/*
 !libtorch/train_model/data/
 !libtorch/train_model/data/link.txt
 
+libtorch/eval_model/pretrained/*
+!libtorch/eval_model/pretrained
+
 libtorch/train_model/build/*
 !libtorch/train_model/build/
 
