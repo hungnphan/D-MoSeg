@@ -65,12 +65,12 @@ std::map<std::string, std::vector<std::string>> const cdnet_data {
 const int kNumSequence = 48;
 
 // Limit the max number of processes by GPU memory
-std::map<int,int> nproc_per_gpu_by_batch_size {
-    { 2, 14 },
-    { 4, 10 },
-    { 8, 6 },
-    { 12, 4 },
-};
+// std::map<int,int> nproc_per_gpu_by_batch_size {
+//     { 2, 14 },
+//     { 4, 10 },
+//     { 8, 6 },
+//     { 12, 4 },
+// };
 
 std::pair<std::string,std::string> query_data(int proc_id);
 std::vector<std::pair<std::string,std::string>> distribute_data_for_pe(int proc_id, int num_proc);
@@ -95,15 +95,12 @@ int main(int argc, char* argv[]){
     if(argc < 5){
         std::cout << "Please input all necessary arguments:\n";
         std::cout << "------------------------------------\n";
-        std::cout << "./run <thres_type> <thres_value> <batch_size> <num_epoch> <logging> <log_freq>\n";
+        std::cout << "./run <thres_type> <thres_value> <batch_size> <num_epoch>\n";
         std::cout << "------------------------------------\n";
         std::cout << " <thres_type> : int : the type of threshold (0 for const, 1 for adaptive)\n";
         std::cout << " <thres_value>: int : threshold value\n";
         std::cout << " <batch_size> : int : batch size for training\n";
         std::cout << " <num_epoch>  : int : the number of epoch to loop through the dataset\n";
-        std::cout << " <logging>    : int : flag for log printing (0 for hidden, 1 for display)\n";
-        std::cout << " <log_freq>   : int : frequency of logging printing\n";
-        std::cout << " <use_gpu>    : int : is use the GPU for training or not, default 0\n";
         std::cout << "------------------------------------\n";
 
         return 0;
@@ -118,7 +115,6 @@ int main(int argc, char* argv[]){
     int rank_n      = upcxx::rank_n();     // 3
     int rank_left   = (rank_me-1+rank_n) % rank_n;
     int rank_right  = (rank_me+1) % rank_n;
-
 
     /////////////////////////////////////////////////////////////////////
     // CONFIGURE MODEL PARAMS
@@ -183,20 +179,22 @@ int main(int argc, char* argv[]){
     /////////////////////////////////////////////////////////////////////
     // SPECIFY DEVICE FOR MODEL TRAINING
     /////////////////////////////////////////////////////////////////////
-    int nproc_per_gpu   = nproc_per_gpu_by_batch_size[batch_size];
+    // int nproc_per_gpu   = nproc_per_gpu_by_batch_size[batch_size];
+    // int gpu_idx         = (int) ( 1.0*rank_me / (1.0*nproc_per_gpu) );
+
+    int n_gpus          = torch::cuda::device_count();
+    int nproc_per_gpu   = (1.0*rank_n)/(1.0*n_gpus);
+    if (rank_n % n_gpus != 0) nproc_per_gpu += 1;
     int gpu_idx         = (int) ( 1.0*rank_me / (1.0*nproc_per_gpu) );
-    int is_use_gpu      = (int) std::atoi(argv[7]);
     
     // Default is CPU
-    torch::Device device(/*torch::DeviceType=*/     torch::kCPU          // Use CPU for training
-                         /*int device_idx=*/        /*gpu_idx*/);
+    torch::Device device(/*torch::DeviceType=*/     torch::kCPU);   // Use CPU for training
     
     // Use GPU if CUDA is available
-    if(is_use_gpu)
-        device = torch::Device(torch::cuda::is_available() ?            // Use GPU for training
-                                  /*torch::DeviceType=*/  torch::kCUDA :
-                                  /*torch::DeviceType=*/  torch::kCPU, 
-                               /*int device_idx=*/ gpu_idx);
+    device = torch::Device(torch::cuda::is_available() ?            // Use GPU for training
+                                /*torch::DeviceType=*/  torch::kCUDA :
+                                /*torch::DeviceType=*/  torch::kCPU, 
+                            /*int device_idx=*/ gpu_idx);
 
 
     /////////////////////////////////////////////////////////////////////  
@@ -295,8 +293,8 @@ int main(int argc, char* argv[]){
     int pass_num            = 0;                                             // number of batch that was iterated
     int initial_comm_passes = 30;                                            // threshold to avoid stale value
     int num_events          = 0;                                             // count of #communications: send & receive
-    int is_logging          = (argc >= 6 ? (int) std::atoi(argv[5]) : 1);    // flag to control logging: 0 for hidden, 1 for display
-    int logging_frequency   = (argc >= 7 ? (int) std::atoi(argv[6]) : 5);    // how frequent to print train-logging
+    int is_logging          = 1;                                             // flag to control logging: 0 for hidden, 1 for display
+    int logging_frequency   = 10;                                            // how frequent/steps to print train-logging
     
     // Set training metrics: Loss and Accuracy 
     float loss_val  = 0.0;
@@ -364,7 +362,7 @@ int main(int argc, char* argv[]){
                 // Begin parameter loop
                 for(int i = 0 ; i < sz ; i++){
                     
-                    upcxx::barrier();
+                    // upcxx::barrier();
 
                     // Get dimensions of tensor
                     std::vector<int64_t> dim_array;
@@ -553,8 +551,6 @@ int main(int argc, char* argv[]){
                             << "Loss = "          << loss_val/pass_num << "\t"
                             << "Acc = "           << acc_val/pass_num << "\n";
 
-               
-
             }   // End data loop via batches
 
             if (rank_me == 0){
@@ -629,7 +625,8 @@ int main(int argc, char* argv[]){
         std::cout << "Total number of events - " << num_events << std::endl;
 
         std::ofstream result_file;
-        result_file.open ("log/log_num_messages.csv", std::ofstream::app);
+        std::string result_file_name = "log/log_num_messages_" + std::to_string(rank_n) + "proc" + ".csv";
+        result_file.open (result_file_name, std::ofstream::app);
         result_file << batch_size << "," 
                     << rank_n << "," 
                     << constant << ","
@@ -638,7 +635,6 @@ int main(int argc, char* argv[]){
         result_file.close();
     }
     
-
     /////////////////////////////////////////////////////////////////////
     // TERMINATE UPCXX RUN-TIME
     /////////////////////////////////////////////////////////////////////
