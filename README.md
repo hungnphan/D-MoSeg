@@ -1,6 +1,7 @@
-# Background Subtraction with Two-Stage Network of Density Estimation and Difference Approximation
+<div id="top-page" align="center">
+<h1>Distributed training of Two-Stage Network of Density Estimation and Difference Approximation: Communication-efficient Distributed Motion Segmentation (D-MoSeg)</h1>
+</div>
 
-This repository stores the implementation of Background subtraction using Convolutional Density Network.
 
 Requirements:
 - For Python:
